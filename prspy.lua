@@ -21,7 +21,7 @@ local function onChatted(p,msg)
 		if p==player and msg:lower():sub(1,4)=="/spy" then
 			enabled = not enabled
 			wait(0.3)
-			privateProperties.Text = "{SPY "..(enabled and "EN" or "DIS").."ABLED}"
+			privateProperties.Text = "{ぐらばーすぱい "..(enabled and "EN" or "DIS").."ABLED}"
 			StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
 		elseif enabled and (spyOnMyself==true or p~=player) then
 			msg = msg:gsub("[\n\r]",''):gsub("\t",' '):gsub("[ ]+",' ')
