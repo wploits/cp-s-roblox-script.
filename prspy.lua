@@ -34,7 +34,7 @@ local function onChatted(p,msg)
 			wait(1)
 			conn:Disconnect()
 			if hidden and enabled then
-				saymsg:FireServer((publicItalics and "/me " or '').."{SPY} [".. p.Name .."]: "..msg,"All")
+				saymsg:FireServer((publicItalics and "/me " or '').."{ぐらばーすぱい} [".. p.Name .."]: "..msg,"All")
 			end
 		end
 	end
