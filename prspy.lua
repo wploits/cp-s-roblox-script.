@@ -16,39 +16,39 @@ local getmsg = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSys
 local instance = (_G.chatSpyInstance or 0) + 1
 _G.chatSpyInstance = instance
 
-local function onChatted(p,msg)
+local function onChatted(p, msg)
 	if _G.chatSpyInstance == instance then
-		if p==player and msg:lower():sub(1,4)=="/spy" then
+		if p == player and msg:lower():sub(1, 4) == "/spy" then
 			enabled = not enabled
 			wait(0.3)
-			privateProperties.Text = "{ぐらばーすぱい "..(enabled and "EN" or "DIS").."ABLED}"
-			StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
-		elseif enabled and (spyOnMyself==true or p~=player) then
-			msg = msg:gsub("[\n\r]",''):gsub("\t",' '):gsub("[ ]+",' ')
+			privateProperties.Text = "{ぐらばーすぱい " .. (enabled and "EN" or "DIS") .. "ABLED}"
+			StarterGui:SetCore("ChatMakeSystemMessage", privateProperties)
+		elseif enabled and (spyOnMyself == true or p ~= player) then
+			msg = msg:gsub("[\n\r]", ''):gsub("\t", ' '):gsub("[ ]+", ' ')
 			local hidden = true
-			local conn = getmsg.OnClientEvent:Connect(function(packet,channel)
-				if packet.SpeakerUserId==p.UserId and packet.Message==msg:sub(#msg-#packet.Message+1) and (channel=="All" or (channel=="Team" and public==false and Players[packet.FromSpeaker].Team==player.Team)) then
+			local conn = getmsg.OnClientEvent:Connect(function(packet, channel)
+				if packet.SpeakerUserId == p.UserId and packet.Message == msg:sub(-#packet.Message) and (channel == "All" or (channel == "Team" and public == false and Players[packet.FromSpeaker].Team == player.Team)) then
 					hidden = false
 				end
 			end)
 			wait(1)
 			conn:Disconnect()
 			if hidden and enabled then
-				saymsg:FireServer((publicItalics and "/me " or '').."{ぐらばーすぱい} [".. p.Name .."]: "..msg,"All")
+				saymsg:FireServer((publicItalics and "/me " or '') .. "{ぐらばーすぱい} [" .. p.Name .. "]: " .. msg, "All")
 			end
 		end
 	end
 end
 
-for _,p in ipairs(Players:GetPlayers()) do
-	p.Chatted:Connect(function(msg) onChatted(p,msg) end)
+for _, p in ipairs(Players:GetPlayers()) do
+	p.Chatted:Connect(function(msg) onChatted(p, msg) end)
 end
 Players.PlayerAdded:Connect(function(p)
-	p.Chatted:Connect(function(msg) onChatted(p,msg) end)
+	p.Chatted:Connect(function(msg) onChatted(p, msg) end)
 end)
-privateProperties.Text = "{ぐらばーすぱい "..(enabled and "EN" or "DIS").."ABLED}"
-StarterGui:SetCore("ChatMakeSystemMessage",privateProperties)
+privateProperties.Text = "{ぐらばーすぱい " .. (enabled and "EN" or "DIS") .. "ABLED}"
+StarterGui:SetCore("ChatMakeSystemMessage", privateProperties)
 if not player.PlayerGui:FindFirstChild("Chat") then wait(3) end
 local chatFrame = player.PlayerGui.Chat.Frame
 chatFrame.ChatChannelParentFrame.Visible = true
-chatFrame.ChatBarParentFrame.Position = chatFrame.ChatChannelParentFrame.Position+UDim2.new(UDim.new(),chatFrame.ChatChannelParentFrame.Size.Y)
+chatFrame.ChatBarParentFrame.Position = chatFrame.ChatChannelParentFrame.Position + UDim2.new(UDim.new(), chatFrame.ChatChannelParentFrame.Size.Y)
