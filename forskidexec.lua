@@ -3,7 +3,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/vapevoid
 local executor = "Unknown"
 local HWID = tostring(game:GetService("RbxAnalyticsService"):GetClientId())
 
-local executors = {"Scythex"}
+local executors = {"fucking exec"}
 
 for i,v in pairs(executors) do
     if string.find(string.lower(identifyexecutor()), executors[i]) then
