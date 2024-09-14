@@ -3,13 +3,12 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/vapevoid
 local executor = "Unknown"
 local HWID = tostring(game:GetService("RbxAnalyticsService"):GetClientId())
 
-local executors = {"fucking exec"}
+local executors = {"Scythex"}
+local currentExecutor = string.lower(identifyexecutor())
 
-for i,v in pairs(executors) do
-    if string.find(string.lower(identifyexecutor()), executors[i]) then
-        executor = executors[i]
-        break
-    end
+if executors = currentExecutor then
+    print("omg Scythex user? fucking idiot use the skid exec")
+    print(".gg/aNgxzbTGSG")
 end
 
 local headers = {
