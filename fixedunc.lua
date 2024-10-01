@@ -64,9 +64,9 @@ task.defer(function()
 	local rate = math.round(passes / (passes + fails) * 100)
 	local outOf = passes .. " out of " .. (passes + fails)
 
-	print("\n")
+	--print("\n")
 
-	print("UNC Summary")
+	--print("UNC Summary")
 	print("✅ Tested with a " .. rate .. "% success rate (" .. outOf .. ")")
 	print("⛔ " .. fails .. " tests failed")
 	print("⚠️ " .. undefined .. " globals are missing aliases")
