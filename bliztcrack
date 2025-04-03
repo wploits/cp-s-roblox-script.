@@ -1,3 +1,4 @@
+getgenv().gethui = function() return game.CoreGui end
 --[[
 
 ^(>.1)^
