@@ -2,6 +2,7 @@
 -- ^^ --
 _G.fov = 150 -- fov for silentaim
 _G.checkForceField = true -- check forcefield for more blatant? and more hit accuracy
+_G.checkMyForceField = true -- Xx uwu legit uwu xX
 _G.useMousePosition = false -- use mousepos for FOV
 _G.useHitChance = true -- use hitchance? for legit
 _G.hitchance = 85 -- 1~100% hitchance config
@@ -118,6 +119,10 @@ local function shootAtHead(targetPlayer)
         if not string.find(nameLower, "awp") then
             return
         end
+    end
+
+    if _G.checkMyForceField and game.Players.LocalPlayer.Character:FindFirstChildOfClass("ForceField") then
+        return
     end
 
     if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("Head") then return end
