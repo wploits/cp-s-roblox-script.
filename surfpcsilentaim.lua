@@ -10,6 +10,7 @@ _G.fovRGB = true -- fov circle rgb option
 _G.fovRGBSpeed = 0.01 -- rgb speed
 _G.fovColor = Color3.fromRGB(255, 255, 255) -- fov circle color if fov rgb is off
 _G.wallCheck = true -- wallcheck for legit
+_G.customDamage = 810
 -- CONFIG END --
 
 local fovCircle = Drawing.new("Circle")
@@ -136,7 +137,12 @@ local function shootAtHead(targetPlayer)
         [2] = { targetHead.Position },
         [3] = { targetHead },
         [4] = { targetPlayer.Character },
-        [5] = 303,
+        if _G.customDamage then
+            [5] = _G.customDamage,
+        else
+            [5] = 303,
+        end
+        
         [6] = true,
         [7] = {
             ["ImageSize"] = UDim2.new(0, 80, 0, 80),
