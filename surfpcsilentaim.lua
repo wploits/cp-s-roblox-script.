@@ -137,12 +137,6 @@ local function shootAtHead(targetPlayer)
         [2] = { targetHead.Position },
         [3] = { targetHead },
         [4] = { targetPlayer.Character },
-        if _G.customDamage then
-            [5] = _G.customDamage,
-        else
-            [5] = 303,
-        end
-        
         [6] = true,
         [7] = {
             ["ImageSize"] = UDim2.new(0, 80, 0, 80),
@@ -154,6 +148,7 @@ local function shootAtHead(targetPlayer)
         [11] = distance,
         [12] = distance / 100
     }
+    args[5] = _G.customDamage or 303
 
     LocalPlayer.Character.GunLocalNew.Shoot:FireServer(unpack(args))
 end
