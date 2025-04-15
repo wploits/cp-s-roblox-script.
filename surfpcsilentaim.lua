@@ -18,10 +18,20 @@ _G.wallCheck = true -- wallcheck for legit
 _G.customShootSoundId = 6586979979 -- ONLY ID NOT INCLUDE rbxassetid://
 _G.customReloadSoundId = 6586979979
 _G.customBoltSoundID = 6586979979
+_G.customVolume = 100 -- 0 ~ 2
+_G.customVolumeEnableFor = 7
+-- 0 = none(default volume)
+-- 1 = shootsound only
+-- 2 = reloadsound only
+-- 3 = boltsound only
+-- 4 = shoot + bolt
+-- 5 = shoot + reload
+-- 6 = bolt + reload
+-- 7 = all
 
 _G.wallhackChams = true -- chams wallhack ez ez
 
-_G.headshot = true
+_G.headshot = false
 _G.noscope = true
 -- CONFIG END --
 
@@ -85,10 +95,95 @@ RunService.RenderStepped:Connect(function()
         for _, child in ipairs(Camera:GetChildren()) do
             local nameLower = string.lower(child.Name)
 
-            if not string.find(nameLower, "awp") then
-                return
+            if string.find(nameLower, "awp") then
+                child:FindFirstChild("Sounds"):FindFirstChild("Reload").SoundId = "rbxassetid://"..tostring(_G.customReloadSoundId)
             end
-            child:FindFirstChild("Sounds"):FindFirstChild("Reload").SoundId = "rbxassetid://"..tostring(_G.customReloadSoundId)
+        end
+    end
+
+    if _G.customVolume and _G.customVolumeEnableFor and _G.customVolume >= 0 and _G.customVolume <= 2 then
+        if _G.customVolumeEnableFor ~= 0 then
+            if _G.customVolumeEnableFor == 1 then
+                for _, child in ipairs(Camera:GetChildren()) do
+                    local nameLower = string.lower(child.Name)
+
+                    if string.find(nameLower, "awp") then
+                        child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = 1.1
+                        child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = 1.5
+                    end
+                end
+            elseif _G.customVolumeEnableFor == 2 then
+                for _, child in ipairs(Camera:GetChildren()) do
+                    local nameLower = string.lower(child.Name)
+
+                    if string.find(nameLower, "awp") then
+                        child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = 0.6
+                        child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = 1.5
+                    end
+                end
+            elseif _G.customVolumeEnableFor == 3 then
+                for _, child in ipairs(Camera:GetChildren()) do
+                    local nameLower = string.lower(child.Name)
+
+                    if string.find(nameLower, "awp") then
+                        child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = 0.6
+                        child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = 1.1
+                        child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = _G.customVolume
+                    end
+                end
+            elseif _G.customVolumeEnableFor == 4 then
+                for _, child in ipairs(Camera:GetChildren()) do
+                    local nameLower = string.lower(child.Name)
+
+                    if string.find(nameLower, "awp") then
+                        child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = 1.1
+                        child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = _G.customVolume
+                    end
+                end
+            elseif _G.customVolumeEnableFor == 5 then
+                for _, child in ipairs(Camera:GetChildren()) do
+                    local nameLower = string.lower(child.Name)
+
+                    if string.find(nameLower, "awp") then
+                        child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = 1.5
+                    end
+                end
+            elseif _G.customVolumeEnableFor == 6 then
+                for _, child in ipairs(Camera:GetChildren()) do
+                    local nameLower = string.lower(child.Name)
+
+                    if string.find(nameLower, "awp") then
+                        child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = 0.6
+                        child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = _G.customVolume
+                    end
+                end
+            elseif _G.customVolumeEnableFor == 7 then
+                for _, child in ipairs(Camera:GetChildren()) do
+                    local nameLower = string.lower(child.Name)
+
+                    if string.find(nameLower, "awp") then
+                        child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = _G.customVolume
+                        child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = _G.customVolume
+                    end
+                end
+            end
+        else
+            for _, child in ipairs(Camera:GetChildren()) do
+                local nameLower = string.lower(child.Name)
+
+                if string.find(nameLower, "awp") then
+                    child:FindFirstChild("Sounds"):FindFirstChild("Fire").Volume = 0.6
+                    child:FindFirstChild("Sounds"):FindFirstChild("Reload").Volume = 1.1
+                    child:FindFirstChild("Sounds"):FindFirstChild("Bolt").Volume = 1.5
+                end
+            end
         end
     end
 
