@@ -1,15 +1,28 @@
 -- CONFIG --
 -- ^^ --
 _G.fov = 150 -- fov for silentaim
+_G.useMousePosition = false -- use mousepos for FOV
+
 _G.checkForceField = true -- check forcefield for more blatant? and more hit accuracy
 _G.checkMyForceField = true -- Xx uwu legit uwu xX
-_G.useMousePosition = false -- use mousepos for FOV
-_G.useHitChance = true -- use hitchance? for legit
-_G.hitchance = 85 -- 1~100% hitchance config
+
+_G.useHitChance = false -- use hitchance? for legit
+_G.hitchance = 50 -- 1~100% hitchance config
+
 _G.fovRGB = true -- fov circle rgb option
 _G.fovRGBSpeed = 0.01 -- rgb speed
 _G.fovColor = Color3.fromRGB(255, 255, 255) -- fov circle color if fov rgb is off
+
 _G.wallCheck = true -- wallcheck for legit
+
+_G.customShootSoundId = 6586979979 -- ONLY ID NOT INCLUDE rbxassetid://
+_G.customReloadSoundId = 6586979979
+_G.customBoltSoundID = 6586979979
+
+_G.wallhackChams = true -- chams wallhack ez ez
+
+_G.headshot = true
+_G.noscope = true
 -- CONFIG END --
 
 local fovCircle = Drawing.new("Circle")
@@ -27,6 +40,7 @@ local Mouse = LocalPlayer:GetMouse()
 local Camera = workspace.CurrentCamera
 
 local hue = 0
+local chue = 0
 
 RunService.RenderStepped:Connect(function()
     if _G.useMousePosition then
@@ -43,6 +57,53 @@ RunService.RenderStepped:Connect(function()
         fovCircle.Color = Color3.fromHSV(hue, 1, 1)
     else
         fovCircle.Color = _G.fovColor or Color3.fromRGB(255, 255, 255)
+    end
+
+    if _G.customShootSoundId then
+        for _, child in ipairs(Camera:GetChildren()) do
+            local nameLower = string.lower(child.Name)
+
+            if not string.find(nameLower, "awp") then
+                return
+            end
+            child:FindFirstChild("Sounds"):FindFirstChild("Fire").SoundId = "rbxassetid://"..tostring(_G.customShootSoundId)
+        end
+    end
+
+    if _G.customBoltSoundID then
+        for _, child in ipairs(Camera:GetChildren()) do
+            local nameLower = string.lower(child.Name)
+
+            if not string.find(nameLower, "awp") then
+                return
+            end
+            child:FindFirstChild("Sounds"):FindFirstChild("Bolt").SoundId = "rbxassetid://"..tostring(_G.customBoltSoundID)
+        end
+    end
+
+    if _G.customReloadSoundId then
+        for _, child in ipairs(Camera:GetChildren()) do
+            local nameLower = string.lower(child.Name)
+
+            if not string.find(nameLower, "awp") then
+                return
+            end
+            child:FindFirstChild("Sounds"):FindFirstChild("Reload").SoundId = "rbxassetid://"..tostring(_G.customReloadSoundId)
+        end
+    end
+
+    if _G.wallhackChams then
+        for _, player in Players:GetPlayers() do
+            if player.Character:FindFirstChild("Highlight") then
+                player.Character:FindFirstChild("Highlight").DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            end
+        end
+    else
+        for _, player in Players:GetPlayers() do
+            if player.Character:FindFirstChild("Highlight") then
+                player.Character:FindFirstChild("Highlight").DepthMode = Enum.HighlightDepthMode.Occluded
+            end
+        end
     end
 end)
 
@@ -136,14 +197,14 @@ local function shootAtHead(targetPlayer)
         [2] = { targetHead.Position },
         [3] = { targetHead },
         [4] = { targetPlayer.Character },
-        [5] = 303
+        [5] = 303,
         [6] = true,
         [7] = {
             ["ImageSize"] = UDim2.new(0, 80, 0, 80),
             ["Image"] = "rbxassetid://2855991319"
         },
-        [8] = false,
-        [9] = false,
+        [8] = _G.headshot,
+        [9] = _G.noscope,
         [10] = "AWP",
         [11] = distance,
         [12] = distance / 100
