@@ -1,9 +1,3 @@
---[[
-    Hcks Hub - Steal a Dougahan (Auto-Exec Edition)
-    Ver: 7.0 (Queue on Teleport Added)
-    Author: wploits
-]]
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -18,14 +12,12 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local StealEvent = Remotes:WaitForChild("StealEntity")
 local SellEvent = Remotes:WaitForChild("SellEntity")
 
--- ■ モジュール安全取得 ■
 local EntityModule = nil
 local Success, Result = pcall(function()
     return require(ReplicatedStorage.Modules.Entities)
 end)
 if Success then EntityModule = Result end
 
--- ■ テーマ設定 ■
 local Theme = {
     Bg = Color3.fromRGB(10, 10, 14),
     Frame = Color3.fromRGB(20, 20, 28),
@@ -48,7 +40,6 @@ local RarityColors = {
     ["Exotic"] = Color3.fromRGB(0, 255, 255)
 }
 
--- ■ ステート管理 ■
 local States = {
     LoopSteal = false,
     AutoSell = true,
@@ -58,7 +49,6 @@ local States = {
     StopRequested = false
 }
 
--- ■ ヘルパー関数 ■
 local function CreateTween(obj, props, time, style, dir)
     local t = TweenService:Create(obj, TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
     t:Play()
@@ -73,13 +63,11 @@ local function FormatNumber(n)
     return tostring(n)
 end
 
--- ■ UI構築 ■
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "HcksHub_AutoRejoin"
 ScreenGui.ResetOnSpawn = false
 if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
 
--- ▼ 通知システム ▼
 local NotifyContainer = Instance.new("Frame")
 NotifyContainer.Size = UDim2.new(0, 280, 1, 0)
 NotifyContainer.Position = UDim2.new(1, -300, 0, 0)
@@ -139,7 +127,6 @@ local function Notify(text, color, duration)
     end)
 end
 
--- ▼ メインウィンドウ (Resizable) ▼
 local Main = Instance.new("Frame")
 Main.Name = "Main"
 Main.Size = UDim2.new(0, 0, 0, 0)
@@ -158,7 +145,6 @@ MainStroke.Color = Theme.Accent
 MainStroke.Transparency = 0.3
 MainStroke.Parent = Main
 
--- 背景
 local Pat = Instance.new("ImageLabel")
 Pat.Size = UDim2.new(1, 0, 1, 0)
 Pat.BackgroundTransparency = 1
@@ -169,7 +155,6 @@ Pat.ScaleType = Enum.ScaleType.Tile
 Pat.TileSize = UDim2.new(0, 30, 0, 30)
 Pat.Parent = Main
 
--- リサイズハンドル
 local Resizer = Instance.new("ImageButton")
 Resizer.Size = UDim2.new(0, 20, 0, 20)
 Resizer.Position = UDim2.new(1, -20, 1, -20)
@@ -205,7 +190,6 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- タイトルバー
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 50)
 TitleBar.BackgroundTransparency = 1
@@ -251,7 +235,6 @@ Close.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- コンテンツ配置
 local Content = Instance.new("Frame")
 Content.Size = UDim2.new(1, -20, 1, -60)
 Content.Position = UDim2.new(0, 10, 0, 50)
@@ -290,7 +273,6 @@ SideLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Side.CanvasSize = UDim2.new(0, 0, 0, SideLayout.AbsoluteContentSize.Y + 30)
 end)
 
--- コンポーネント
 local function Input(ph, def)
     local C = Instance.new("Frame")
     C.Size = UDim2.new(1, 0, 0, 42)
@@ -401,7 +383,6 @@ local function Button(text, color, func)
     end)
 end
 
--- リストヘッダー
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 30)
 Header.BackgroundTransparency = 1
@@ -427,7 +408,6 @@ Scroll.ScrollBarImageColor3 = Theme.Accent
 Scroll.Parent = List
 Instance.new("UIListLayout", Scroll).Padding = UDim.new(0,2)
 
--- ■ 署名 ■
 local Sign = Instance.new("TextLabel")
 Sign.Text = "by wploits"
 Sign.Size = UDim2.new(0, 100, 0, 20)
@@ -439,7 +419,6 @@ Sign.TextSize = 10
 Sign.TextXAlignment = Enum.TextXAlignment.Right
 Sign.Parent = Main
 
--- ■ ロジック ■
 local function GetInfo(name)
     if not EntityModule or not EntityModule.entityData then return nil end
     local d = EntityModule.entityData[name]
@@ -513,7 +492,6 @@ local function ForceSellMyBase()
     end
 end
 
--- ★ Steal Logic ★
 local function ProcessSteal(isLoop)
     if States.IsProcessing then 
         if not isLoop then Notify("Busy...", Theme.Fail) end
@@ -575,11 +553,9 @@ local function ProcessSteal(isLoop)
     end)
 end
 
--- ★ Server Hop (With Auto Exec) ★
 local function ServerHop()
     Notify("Searching...", Theme.Accent, 5)
     
-    -- Queue on teleport for auto-execution
     if queue_on_teleport or syn and syn.queue_on_teleport then
         (queue_on_teleport or syn.queue_on_teleport)([[
             repeat task.wait() until game:IsLoaded()
@@ -631,7 +607,7 @@ end)
 task.spawn(function()
     while true do
         if States.AutoScan then Scan() end
-        task.wait(3)
+        task.wait(0.5)
     end
 end)
 
