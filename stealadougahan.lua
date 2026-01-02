@@ -1,68 +1,644 @@
+--[[
+    Hcks Hub - Steal a Dougahan (Auto-Exec Edition)
+    Ver: 7.0 (Queue on Teleport Added)
+    Author: wploits
+]]
 
-local players = game:GetService("Players")
-local runservice = game:GetService("RunService")
-local rep = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local localplayer = players.LocalPlayer
-local RagdollRemote = rep:WaitForChild("Ragdoll"):WaitForChild("RagdollRemote")
+local LocalPlayer = Players.LocalPlayer
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local StealEvent = Remotes:WaitForChild("StealEntity")
+local SellEvent = Remotes:WaitForChild("SellEntity")
 
-local function resetphy()
-    local char = localplayer.Character
-    if not char then return end
-    
-    local HRP = char:FindFirstChild("HumanoidRootPart")
-    local human = char:FindFirstChild("Humanoid")
-    
-    if not HRP or not HRP then return end
+-- ■ モジュール安全取得 ■
+local EntityModule = nil
+local Success, Result = pcall(function()
+    return require(ReplicatedStorage.Modules.Entities)
+end)
+if Success then EntityModule = Result end
 
-    local oldcframe = HRP.CFrame
-    HRP.Anchored = true
-    HRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-    HRP.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+-- ■ テーマ設定 ■
+local Theme = {
+    Bg = Color3.fromRGB(10, 10, 14),
+    Frame = Color3.fromRGB(20, 20, 28),
+    Accent = Color3.fromRGB(170, 50, 255),
+    AccentDim = Color3.fromRGB(120, 40, 180),
+    Text = Color3.fromRGB(255, 255, 255),
+    SubText = Color3.fromRGB(160, 160, 180),
+    Success = Color3.fromRGB(80, 255, 140),
+    Fail = Color3.fromRGB(255, 80, 80),
+    Border = Color3.fromRGB(80, 40, 140)
+}
 
-    for _, v in ipairs(char:GetDescendants()) do
-        if v:IsA("BallSocketConstraint") or v:IsA("HingeConstraint") or v:IsA("BodyVelocity") or v:IsA("BodyGyro") then
-            v:Destroy()
-        end
-        
-        if v:IsA("Motor6D") and v.Enabled == false then
-            v.Enabled = true
-        end
-    end
+local RarityColors = {
+    ["Common"] = Color3.fromRGB(200, 200, 200),
+    ["Uncommon"] = Color3.fromRGB(50, 255, 100),
+    ["Rare"] = Color3.fromRGB(50, 150, 255),
+    ["Epic"] = Color3.fromRGB(200, 50, 255),
+    ["Legendary"] = Color3.fromRGB(255, 200, 0),
+    ["Mythical"] = Color3.fromRGB(255, 0, 0),
+    ["Exotic"] = Color3.fromRGB(0, 255, 255)
+}
 
-    human.PlatformStand = false
-    human.Sit = false
-    human.AutoRotate = true
+-- ■ ステート管理 ■
+local States = {
+    LoopSteal = false,
+    AutoSell = true,
+    AutoScan = false,
+    AntiRagdoll = true,
+    IsProcessing = false,
+    StopRequested = false
+}
 
-    human:ChangeState(Enum.HumanoidStateType.GettingUp)
-
-    runservice.Heartbeat:Wait()
-    
-    HRP.CFrame = oldcframe
-    HRP.Anchored = false
-    
-    HRP.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+-- ■ ヘルパー関数 ■
+local function CreateTween(obj, props, time, style, dir)
+    local t = TweenService:Create(obj, TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
 end
 
-local connection
-connection = RagdollRemote.OnClientEvent:Connect(function(val)
-    if val == true then
-        if firesignal then
-            firesignal(RagdollRemote.OnClientEvent, false)
+local function FormatNumber(n)
+    if not n or type(n) ~= "number" then return "0" end
+    if n >= 1e9 then return string.format("%.1fB", n/1e9) end
+    if n >= 1e6 then return string.format("%.1fM", n/1e6) end
+    if n >= 1e3 then return string.format("%.1fK", n/1e3) end
+    return tostring(n)
+end
+
+-- ■ UI構築 ■
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "HcksHub_AutoRejoin"
+ScreenGui.ResetOnSpawn = false
+if gethui then ScreenGui.Parent = gethui() else ScreenGui.Parent = CoreGui end
+
+-- ▼ 通知システム ▼
+local NotifyContainer = Instance.new("Frame")
+NotifyContainer.Size = UDim2.new(0, 280, 1, 0)
+NotifyContainer.Position = UDim2.new(1, -300, 0, 0)
+NotifyContainer.BackgroundTransparency = 1
+NotifyContainer.Parent = ScreenGui
+
+local NotifyList = Instance.new("UIListLayout")
+NotifyList.Parent = NotifyContainer
+NotifyList.SortOrder = Enum.SortOrder.LayoutOrder
+NotifyList.VerticalAlignment = Enum.VerticalAlignment.Bottom
+NotifyList.Padding = UDim.new(0, 8)
+
+local function Notify(text, color, duration)
+    local Toast = Instance.new("Frame")
+    Toast.Size = UDim2.new(1, 0, 0, 45)
+    Toast.BackgroundColor3 = Theme.Frame
+    Toast.BorderSizePixel = 0
+    Toast.Parent = NotifyContainer
+    
+    local originalSize = UDim2.new(1, 0, 0, 45)
+    Toast.Position = UDim2.new(1, 50, 0, 0)
+    
+    Instance.new("UICorner", Toast).CornerRadius = UDim.new(0, 6)
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = color or Theme.Accent
+    Stroke.Thickness = 1.5
+    Stroke.Parent = Toast
+    
+    local Icon = Instance.new("Frame")
+    Icon.Size = UDim2.new(0, 4, 1, 0)
+    Icon.BackgroundColor3 = color or Theme.Accent
+    Icon.BorderSizePixel = 0
+    Icon.Parent = Toast
+    Instance.new("UICorner", Icon).CornerRadius = UDim.new(0, 6)
+    
+    local Lbl = Instance.new("TextLabel")
+    Lbl.Size = UDim2.new(1, -20, 1, 0)
+    Lbl.Position = UDim2.new(0, 15, 0, 0)
+    Lbl.BackgroundTransparency = 1
+    Lbl.Text = text
+    Lbl.TextColor3 = Theme.Text
+    Lbl.Font = Enum.Font.GothamBold
+    Lbl.TextSize = 14
+    Lbl.TextXAlignment = Enum.TextXAlignment.Left
+    Lbl.TextWrapped = true
+    Lbl.Parent = Toast
+    
+    Toast.Size = UDim2.new(1, 0, 0, 0)
+    CreateTween(Toast, {Size = originalSize}, 0.3, Enum.EasingStyle.Back)
+    
+    task.delay(duration or 3, function()
+        CreateTween(Toast, {Size = UDim2.new(1, 0, 0, 0), BackgroundTransparency = 1}, 0.3)
+        CreateTween(Lbl, {TextTransparency = 1}, 0.2)
+        CreateTween(Stroke, {Transparency = 1}, 0.2)
+        task.wait(0.3)
+        Toast:Destroy()
+    end)
+end
+
+-- ▼ メインウィンドウ (Resizable) ▼
+local Main = Instance.new("Frame")
+Main.Name = "Main"
+Main.Size = UDim2.new(0, 0, 0, 0)
+Main.Position = UDim2.new(0.5, 0, 0.5, 0)
+Main.BackgroundColor3 = Theme.Bg
+Main.BorderSizePixel = 0
+Main.ClipsDescendants = true
+Main.Active = true
+Main.Draggable = true
+Main.Parent = ScreenGui
+
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Thickness = 1.5
+MainStroke.Color = Theme.Accent
+MainStroke.Transparency = 0.3
+MainStroke.Parent = Main
+
+-- 背景
+local Pat = Instance.new("ImageLabel")
+Pat.Size = UDim2.new(1, 0, 1, 0)
+Pat.BackgroundTransparency = 1
+Pat.Image = "rbxassetid://3001363673"
+Pat.ImageTransparency = 0.95
+Pat.ImageColor3 = Theme.Accent
+Pat.ScaleType = Enum.ScaleType.Tile
+Pat.TileSize = UDim2.new(0, 30, 0, 30)
+Pat.Parent = Main
+
+-- リサイズハンドル
+local Resizer = Instance.new("ImageButton")
+Resizer.Size = UDim2.new(0, 20, 0, 20)
+Resizer.Position = UDim2.new(1, -20, 1, -20)
+Resizer.BackgroundTransparency = 1
+Resizer.Image = "rbxassetid://9366408229"
+Resizer.ImageColor3 = Theme.SubText
+Resizer.ZIndex = 10
+Resizer.Parent = Main
+
+local isResizing = false
+local resizeStart = nil
+local startSize = nil
+
+Resizer.MouseButton1Down:Connect(function()
+    isResizing = true
+    resizeStart = UserInputService:GetMouseLocation()
+    startSize = Main.AbsoluteSize
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isResizing = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isResizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local currentPos = UserInputService:GetMouseLocation()
+        local diff = currentPos - resizeStart
+        local newX = math.max(600, startSize.X + diff.X)
+        local newY = math.max(400, startSize.Y + diff.Y)
+        Main.Size = UDim2.new(0, newX, 0, newY)
+    end
+end)
+
+-- タイトルバー
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 50)
+TitleBar.BackgroundTransparency = 1
+TitleBar.Parent = Main
+
+local Title = Instance.new("TextLabel")
+Title.Text = "HCKS <font color=\"#AA32FF\">HUB</font>"
+Title.RichText = true
+Title.Size = UDim2.new(0, 200, 1, 0)
+Title.Position = UDim2.new(0, 20, 0, 0)
+Title.BackgroundTransparency = 1
+Title.TextColor3 = Theme.Text
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 24
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
+
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Text = "ULTIMATE"
+SubTitle.Size = UDim2.new(0, 100, 0, 20)
+SubTitle.Position = UDim2.new(0, 150, 0, 18)
+SubTitle.BackgroundTransparency = 1
+SubTitle.TextColor3 = Theme.SubText
+SubTitle.Font = Enum.Font.Code
+SubTitle.TextSize = 10
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Parent = TitleBar
+
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.new(0, 30, 0, 30)
+Close.Position = UDim2.new(1, -40, 0, 10)
+Close.BackgroundColor3 = Theme.Frame
+Close.Text = "X"
+Close.TextColor3 = Theme.Fail
+Close.Font = Enum.Font.GothamBlack
+Close.TextSize = 18
+Close.Parent = TitleBar
+Instance.new("UICorner", Close).CornerRadius = UDim.new(0, 6)
+Close.MouseButton1Click:Connect(function()
+    States.StopRequested = true
+    CreateTween(Main, {Size = UDim2.new(0,0,0,0)}, 0.3)
+    task.wait(0.3)
+    ScreenGui:Destroy()
+end)
+
+-- コンテンツ配置
+local Content = Instance.new("Frame")
+Content.Size = UDim2.new(1, -20, 1, -60)
+Content.Position = UDim2.new(0, 10, 0, 50)
+Content.BackgroundTransparency = 1
+Content.Parent = Main
+
+local Side = Instance.new("ScrollingFrame")
+Side.Size = UDim2.new(0, 220, 1, 0)
+Side.BackgroundTransparency = 1
+Side.ScrollBarThickness = 2
+Side.ScrollBarImageColor3 = Theme.AccentDim
+Side.CanvasSize = UDim2.new(0, 0, 0, 500)
+Side.Parent = Content
+
+local SidePad = Instance.new("UIPadding")
+SidePad.PaddingLeft = UDim.new(0, 5)
+SidePad.PaddingRight = UDim.new(0, 10)
+SidePad.PaddingTop = UDim.new(0, 5)
+SidePad.PaddingBottom = UDim.new(0, 20)
+SidePad.Parent = Side
+
+local List = Instance.new("Frame")
+List.Size = UDim2.new(1, -230, 1, 0)
+List.Position = UDim2.new(0, 230, 0, 0)
+List.BackgroundColor3 = Theme.Frame
+List.Parent = Content
+Instance.new("UICorner", List).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", List).Color = Theme.Border
+
+local SideLayout = Instance.new("UIListLayout")
+SideLayout.Parent = Side
+SideLayout.Padding = UDim.new(0, 12)
+SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+SideLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Side.CanvasSize = UDim2.new(0, 0, 0, SideLayout.AbsoluteContentSize.Y + 30)
+end)
+
+-- コンポーネント
+local function Input(ph, def)
+    local C = Instance.new("Frame")
+    C.Size = UDim2.new(1, 0, 0, 42)
+    C.BackgroundColor3 = Theme.Frame
+    C.Parent = Side
+    Instance.new("UICorner", C).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", C).Color = Theme.Border
+    
+    local B = Instance.new("TextBox")
+    B.Size = UDim2.new(1, -15, 1, 0)
+    B.Position = UDim2.new(0, 15, 0, 0)
+    B.BackgroundTransparency = 1
+    B.Text = def or ""
+    B.PlaceholderText = ph
+    B.TextColor3 = Theme.Text
+    B.PlaceholderColor3 = Theme.SubText
+    B.Font = Enum.Font.GothamMedium
+    B.TextSize = 13
+    B.TextXAlignment = Enum.TextXAlignment.Left
+    B.Parent = C
+    return B
+end
+
+local MinPrice = Input("Min Price")
+local MinRate = Input("Min Rate")
+local Rarity = Input("Rarity Filter")
+local CooldownInput = Input("Steal Cooldown (sec)", "0.5")
+
+local function Separator(text)
+    local L = Instance.new("TextLabel")
+    L.Text = text
+    L.Size = UDim2.new(1, 0, 0, 20)
+    L.BackgroundTransparency = 1
+    L.TextColor3 = Theme.AccentDim
+    L.Font = Enum.Font.GothamBold
+    L.TextSize = 11
+    L.TextXAlignment = Enum.TextXAlignment.Left
+    L.Parent = Side
+end
+
+Separator("SETTINGS")
+
+local function Toggle(text, key)
+    local B = Instance.new("TextButton")
+    B.Size = UDim2.new(1, 0, 0, 36)
+    B.BackgroundTransparency = 1
+    B.Text = ""
+    B.Parent = Side
+    
+    local L = Instance.new("TextLabel")
+    L.Text = text
+    L.Size = UDim2.new(0.7, 0, 1, 0)
+    L.BackgroundTransparency = 1
+    L.TextColor3 = Theme.SubText
+    L.Font = Enum.Font.Gotham
+    L.TextSize = 13
+    L.TextXAlignment = Enum.TextXAlignment.Left
+    L.Parent = B
+    
+    local S = Instance.new("Frame")
+    S.Size = UDim2.new(0, 44, 0, 22)
+    S.Position = UDim2.new(1, -44, 0.5, -11)
+    S.BackgroundColor3 = States[key] and Theme.Accent or Theme.Frame
+    S.Parent = B
+    Instance.new("UICorner", S).CornerRadius = UDim.new(0, 4)
+    Instance.new("UIStroke", S).Color = Theme.Border
+    
+    local D = Instance.new("Frame")
+    D.Size = UDim2.new(0, 16, 0, 16)
+    D.Position = States[key] and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+    D.BackgroundColor3 = Color3.new(1,1,1)
+    D.Parent = S
+    Instance.new("UICorner", D).CornerRadius = UDim.new(0, 2)
+    
+    B.MouseButton1Click:Connect(function()
+        States[key] = not States[key]
+        local v = States[key]
+        CreateTween(S, {BackgroundColor3 = v and Theme.Accent or Theme.Frame})
+        CreateTween(D, {Position = v and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)})
+    end)
+end
+
+Toggle("Auto Sell (Force)", "AutoSell")
+Toggle("Auto Scan", "AutoScan")
+Toggle("Loop Steal", "LoopSteal")
+Toggle("Anti-Ragdoll", "AntiRagdoll")
+
+Separator("ACTIONS")
+
+local function Button(text, color, func)
+    local B = Instance.new("TextButton")
+    B.Size = UDim2.new(1, 0, 0, 45)
+    B.BackgroundColor3 = color
+    B.Text = text
+    B.TextColor3 = Theme.Text
+    B.Font = Enum.Font.GothamBold
+    B.TextSize = 13
+    B.Parent = Side
+    Instance.new("UICorner", B).CornerRadius = UDim.new(0, 8)
+    
+    B.MouseEnter:Connect(function() CreateTween(B, {BackgroundTransparency = 0.2}) end)
+    B.MouseLeave:Connect(function() CreateTween(B, {BackgroundTransparency = 0}) end)
+    B.MouseButton1Click:Connect(function()
+        CreateTween(B, {Size = UDim2.new(0.95, 0, 0, 42)}, 0.05, nil, Enum.EasingDirection.Out)
+        task.wait(0.05)
+        CreateTween(B, {Size = UDim2.new(1, 0, 0, 45)}, 0.1)
+        func()
+    end)
+end
+
+-- リストヘッダー
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 30)
+Header.BackgroundTransparency = 1
+Header.Parent = List
+
+local function AddH(t,s,p,a)
+    local L = Instance.new("TextLabel")
+    L.Text = t; L.Size=UDim2.new(s,-5,1,0); L.Position=UDim2.new(p,5,0,0)
+    L.BackgroundTransparency=1; L.TextColor3=Theme.SubText; L.Font=Enum.Font.GothamBold
+    L.TextSize=10; L.TextXAlignment=a; L.Parent=Header
+end
+AddH("ENTITY",0.4,0,0)
+AddH("RATE",0.2,0.4,1)
+AddH("PRICE",0.2,0.6,1)
+AddH("RARITY",0.2,0.8,2)
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Size = UDim2.new(1,0,1,-35)
+Scroll.Position = UDim2.new(0,0,0,35)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 3
+Scroll.ScrollBarImageColor3 = Theme.Accent
+Scroll.Parent = List
+Instance.new("UIListLayout", Scroll).Padding = UDim.new(0,2)
+
+-- ■ 署名 ■
+local Sign = Instance.new("TextLabel")
+Sign.Text = "by wploits"
+Sign.Size = UDim2.new(0, 100, 0, 20)
+Sign.Position = UDim2.new(1, -110, 1, -25)
+Sign.BackgroundTransparency = 1
+Sign.TextColor3 = Theme.AccentDim
+Sign.Font = Enum.Font.Code
+Sign.TextSize = 10
+Sign.TextXAlignment = Enum.TextXAlignment.Right
+Sign.Parent = Main
+
+-- ■ ロジック ■
+local function GetInfo(name)
+    if not EntityModule or not EntityModule.entityData then return nil end
+    local d = EntityModule.entityData[name]
+    if not d then return nil end
+    return {
+        Name = d.Name or name,
+        Cost = d.Cost or 0,
+        Rate = d.Rate or d.Income or d.Value or (d.Stats and d.Stats.Income) or 0,
+        Rarity = d.Rarity or d.Tier or "Common"
+    }
+end
+
+local function Scan()
+    for _,v in pairs(Scroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+    
+    local mP = tonumber(MinPrice.Text) or 0
+    local mR = tonumber(MinRate.Text) or 0
+    local rF = Rarity.Text:lower()
+    
+    for _,b in pairs(workspace.Bases:GetChildren()) do
+        local es = b:FindFirstChild("Entities")
+        if es then
+            for _,m in pairs(es:GetChildren()) do
+                local n = m:GetAttribute("Name")
+                if n then
+                    local i = GetInfo(n)
+                    if i and i.Cost >= mP and i.Rate >= mR and (rF=="" or i.Rarity:lower():find(rF)) then
+                        local R = Instance.new("Frame")
+                        R.Size = UDim2.new(1,0,0,32)
+                        R.BackgroundTransparency = 1
+                        R.Parent = Scroll
+                        
+                        local Bg = Instance.new("Frame")
+                        Bg.Size = UDim2.new(1,0,1,-4)
+                        Bg.BackgroundColor3 = Theme.Bg
+                        Bg.BorderSizePixel = 0
+                        Bg.BackgroundTransparency = 0.5
+                        Bg.Parent = R
+                        Instance.new("UICorner", Bg).CornerRadius = UDim.new(0, 4)
+                        
+                        local function T(tx,s,p,a,c)
+                            local L = Instance.new("TextLabel")
+                            L.Text = tx; L.Size=UDim2.new(s,-10,1,0); L.Position=UDim2.new(p,5,0,0)
+                            L.BackgroundTransparency=1; L.TextColor3=c or Theme.Text; L.Font=Enum.Font.GothamMedium
+                            L.TextSize=12; L.TextXAlignment=a; L.TextTruncate=Enum.TextTruncate.AtEnd; L.Parent=R
+                        end
+                        T(i.Name,0.4,0,0)
+                        T(FormatNumber(i.Rate).."/s",0.2,0.4,1,Theme.Success)
+                        T("$"..FormatNumber(i.Cost),0.2,0.6,1,Theme.Accent)
+                        T(i.Rarity,0.2,0.8,2,RarityColors[i.Rarity] or Theme.Text)
+                    end
+                end
+            end
         end
+    end
+end
 
-        resetphy()
+local function ForceSellMyBase()
+    local myBaseID = LocalPlayer:GetAttribute("Base")
+    if not myBaseID then return end
+    
+    local myBase = workspace.Bases:FindFirstChild("Base" .. myBaseID)
+    if myBase then
+        local ents = myBase:FindFirstChild("Entities")
+        if ents then
+            for _, m in pairs(ents:GetChildren()) do
+                local eID = tonumber(m.Name)
+                if eID then SellEvent:FireServer(eID) end
+            end
+        end
+    end
+end
+
+-- ★ Steal Logic ★
+local function ProcessSteal(isLoop)
+    if States.IsProcessing then 
+        if not isLoop then Notify("Busy...", Theme.Fail) end
+        return 
+    end
+    States.IsProcessing = true
+    
+    task.spawn(function()
+        local mP = tonumber(MinPrice.Text) or 0
+        local mR = tonumber(MinRate.Text) or 0
+        local rF = Rarity.Text:lower()
+        local cooldown = tonumber(CooldownInput.Text) or 0.5
+        local myBaseID = LocalPlayer:GetAttribute("Base")
+        
+        local Targets = {}
+        for _, base in pairs(workspace.Bases:GetChildren()) do
+            local bID = tonumber((base.Name:gsub("Base", "")))
+            if bID and bID ~= myBaseID then
+                local es = base:FindFirstChild("Entities")
+                if es then
+                    for _, m in pairs(es:GetChildren()) do
+                        local n = m:GetAttribute("Name")
+                        if n then
+                            local i = GetInfo(n)
+                            if i and i.Cost >= mP and i.Rate >= mR and (rF=="" or i.Rarity:lower():find(rF)) then
+                                table.insert(Targets, {
+                                    BaseID = bID,
+                                    EntityID = tonumber(m.Name),
+                                    Name = i.Name
+                                })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        if #Targets > 0 then
+            if not isLoop then Notify("Queue: " .. #Targets, Theme.Accent, 2) end
+            
+            for idx, t in ipairs(Targets) do
+                if States.StopRequested then break end
+                if isLoop and not States.LoopSteal then break end
+                
+                StealEvent:FireServer(t.BaseID, t.EntityID)
+                
+                if States.AutoSell then
+                    task.wait(0.8) 
+                    ForceSellMyBase()
+                end
+                
+                task.wait(cooldown)
+            end
+            if not isLoop then Notify("Done", Theme.Success) end
+        else
+            if not isLoop then Notify("No Targets", Theme.SubText, 2) end
+        end
+        States.IsProcessing = false
+    end)
+end
+
+-- ★ Server Hop (With Auto Exec) ★
+local function ServerHop()
+    Notify("Searching...", Theme.Accent, 5)
+    
+    -- Queue on teleport for auto-execution
+    if queue_on_teleport or syn and syn.queue_on_teleport then
+        (queue_on_teleport or syn.queue_on_teleport)([[
+            repeat task.wait() until game:IsLoaded()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/wploits/cp-s-roblox-script./refs/heads/main/stealadougahan.lua"))()
+        ]])
+    end
+
+    local cursor = ""
+    while true do
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100" .. (cursor ~= "" and "&cursor="..cursor or "")
+        local s, r = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
+        if s and r and r.data then
+            for _, v in ipairs(r.data) do
+                if type(v)=="table" and v.playing < v.maxPlayers and v.id ~= game.JobId then
+                    Notify("Joining...", Theme.Success, 5)
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id, LocalPlayer)
+                    return
+                end
+            end
+            cursor = r.nextPageCursor or ""
+            if cursor == "" then break end
+        else
+            break
+        end
+        task.wait(0.5)
+    end
+    Notify("No Servers", Theme.Fail)
+end
+
+RunService.Stepped:Connect(function()
+    if States.AntiRagdoll then
+        local c = LocalPlayer.Character
+        if c then
+            if c:FindFirstChild("RagdollObjects") then c.RagdollObjects:Destroy() end
+            if c:GetAttribute("Ragdoll") then c:SetAttribute("Ragdoll", false) end
+        end
     end
 end)
 
-runservice.Stepped:Connect(function()
-    local char = localplayer.Character
-    if not char then return end
-    
-    local human = char:FindFirstChild("Humanoid")
-    if not human then return end
-    
-    if human.PlatformStand == true then
-        resetphy()
+task.spawn(function()
+    while true do
+        if States.LoopSteal and not States.IsProcessing then
+            ProcessSteal(true)
+        end
+        task.wait(1)
     end
 end)
+
+task.spawn(function()
+    while true do
+        if States.AutoScan then Scan() end
+        task.wait(3)
+    end
+end)
+
+Button("SCAN", Theme.Accent, Scan)
+Button("STEAL ALL", Theme.Fail, function() ProcessSteal(false) end)
+Button("SERVER HOP", Theme.SubText, ServerHop)
+
+Main.Size = UDim2.new(0, 0, 0, 0)
+CreateTween(Main, {Size = UDim2.new(0, 750, 0, 500)}, 0.5, Enum.EasingStyle.Back)
+Notify("Hcks Hub Loaded", Theme.Accent, 3)
